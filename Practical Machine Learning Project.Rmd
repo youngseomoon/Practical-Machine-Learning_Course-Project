@@ -1,0 +1,115 @@
+---
+title: "Practical Machine Learning_Course Project"
+author: "Youngseo Moon"
+date: "June 22, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Processing
+
+In the first part of the project, we are first import the data by downloading the training and testin data sets from the given URLs. 
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+```{r Import data}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(randomForest)
+library(knitr)
+
+set.seed(12345)
+
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(trainUrl), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testUrl), na.strings=c("NA","#DIV/0!",""))
+
+inTrain <- createDataPartition(training$classe, p=0.6, list=FALSE)
+myTraining <- training[inTrain, ]
+myTesting <- training[-inTrain, ]
+dim(myTraining); dim(myTesting)
+
+```
+
+Secondary, we are going to clean and split the data.
+
+```{r clean and split data}
+
+training <- myTraining[, colSums(is.na(training)) == 0]
+testing <- myTesting[, colSums(is.na(testing)) == 0]
+
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+
+## the first seven predictors of traning sets to delete errors can be caused by predictors with low predictin gpower. 
+
+set.seed(7826) 
+innTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+
+train <- trainData[innTrain, ]
+valid <- trainData[-innTrain, ]
+
+##Now the cleaned training set has splited into training and validation sets to reduce the sample erros. 
+
+```
+
+## Prediction Algorithms 
+
+```{r prediction}
+control <- trainControl(method = "cv", number = 5)
+fit_rpart <- train(classe ~ ., data = train, method = "rpart", 
+                   trControl = control)
+print(fit_rpart, digits = 4)
+
+predict_rpart <- predict(fit_rpart, valid)
+
+(conf_rpart <- confusionMatrix(valid$classe, predict_rpart))
+
+(accuracy_rpart <- conf_rpart$overall[1])
+
+```
+
+## Random forests
+
+
+```{r random}
+fit_rf <- train(classe ~ ., data = train, method = "rf", 
+                   trControl = control)
+print(fit_rf, digits = 4)
+
+predict_rf <- predict(fit_rf, valid)
+
+# Show prediction result
+(conf_rf <- confusionMatrix(valid$classe, predict_rf))
+
+(accuracy_rf <- conf_rf$overall[1])
+
+```
+
+## Prediction on Testing Set
+
+```{r conclusion}
+(predict(fit_rf, testData))
+
+##The outcome variable for the testing set have been predicted using the random forests. 
+
+```
+
+##End of the course project
